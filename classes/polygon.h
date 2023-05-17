@@ -18,7 +18,6 @@ public:
         double area_computed = 0;
         for (int i = 0; i < vertices.size(); i++)
         {
-            //std::cout << "Area of small triangles: " << vertices[i][0] * vertices[(i + 1) % vertices.size()][1] - vertices[i][1] * vertices[(i + 1) % vertices.size()][0] << std::endl;
             area_computed += vertices[i][0] * vertices[(i + 1) % vertices.size()][1] - vertices[i][1] * vertices[(i + 1) % vertices.size()][0];
         }
         return area_computed / 2;

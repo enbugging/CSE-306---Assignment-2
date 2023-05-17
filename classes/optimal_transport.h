@@ -95,9 +95,7 @@ public:
         solution.points = pts;
         solution.weights.resize(pts.size());
         std::fill(solution.weights.begin(), solution.weights.end(), 1.0);
-        std::cout << solution.points.size() << '\n';
         solution.compute();
-        std::cout << solution.voronoi[0].vertices.size() << '\n';
         double fx = 0.0;
 
         // L-BFGS

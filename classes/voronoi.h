@@ -43,11 +43,9 @@ public:
             const Vector& A = (i == 0) ? poly.vertices[poly.vertices.size() - 1] : poly.vertices[i - 1];
             const Vector& B = poly.vertices[i];
             
-            //std::cout << "B = " << B[0] << " " << B[1] << std::endl;
             double t = dot(M - A, Pi - P0)/dot(B - A, Pi - P0);
             Vector P = A + t*(B - A);
 
-            /*
             if ((B - P0).norm2() - weights[idx_0] < (B - Pi).norm2() - weights[idx_i])
             {
                 if ((A - P0).norm2() - weights[idx_0] > (A - Pi).norm2() - weights[idx_i]) result.vertices.push_back(P);
@@ -57,21 +55,7 @@ public:
             {
                 result.vertices.push_back(P);
             }
-            //*/
-            //*
-            //std::cout << (B - P0).norm2() << " " << (B - Pi).norm2() << std::endl;
-            if ((B - P0).norm2() < (B - Pi).norm2())
-            {
-                if ((A - P0).norm2() > (A - Pi).norm2()) result.vertices.push_back(P);
-                result.vertices.push_back(B);
-            }
-            else if ((A - P0).norm2() < (A - Pi).norm2())
-            {
-                result.vertices.push_back(P);
-            }
-            //*/
         }
-        //std::cout << result.vertices.size() << std::endl;
         return result;
     }
 
