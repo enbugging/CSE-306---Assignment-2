@@ -11,9 +11,13 @@
 class Voronoi
 {
 public:
-    Voronoi(const std::vector<Vector>& pts)
+    Voronoi() {}
+
+    Voronoi(const std::vector<Vector>& pts, const std::vector<double>& weights)
     {
         points = pts;
+        this->weights = weights;
+
         for (Vector p : pts)
         {
             MIN_X = std::min(MIN_X, p[0]);
@@ -24,23 +28,24 @@ public:
         MIN_X -= 1, MAX_X += 1, MIN_Y -= 1, MAX_Y += 1;
     }
 
-    Polygon clip_by_bisector(const Polygon& poly, const Vector& P0, const Vector& Pi)
+    Polygon clip_by_bisector(const Polygon& poly, int idx_0, int idx_i, const Vector& P0, const Vector& Pi)
     {
         Polygon result;
+        Vector M = (P0 + Pi)/2;
+        Vector Mp = M + (weights[idx_0] - weights[idx_i])/(2.*(P0 - Pi).norm2())*(Pi - P0);    
         for (int i = 0; i < poly.vertices.size(); i++)
         {
             const Vector& A = (i == 0) ? poly.vertices[poly.vertices.size() - 1] : poly.vertices[i - 1];
             const Vector& B = poly.vertices[i];
-            Vector M = (P0 + Pi)/2;
-            double t = dot(M - A, Pi - P0)/dot(B - A, Pi - P0);
+            double t = dot(Mp - A, Pi - P0)/dot(B - A, Pi - P0);
             Vector P = A + t*(B - A);
 
-            if ((B - P0).norm() < (B - Pi).norm())
+            if ((B - P0).norm() - weights[idx_0] < (B - Pi).norm() - weights[idx_i])
             {
-                if ((A - P0).norm() > (A - Pi).norm()) result.vertices.push_back(P);
+                if ((A - P0).norm() - weights[idx_0] > (A - Pi).norm() - weights[idx_i]) result.vertices.push_back(P);
                 result.vertices.push_back(B);
             }
-            else if ((A - P0).norm() < (A - Pi).norm())
+            else if ((A - P0).norm() - weights[idx_0] < (A - Pi).norm() - weights[idx_i])
             {
                 result.vertices.push_back(P);
             }
@@ -60,7 +65,7 @@ public:
         for (int i = 0; i < points.size(); i++)
         {
             if (idx == i) continue;
-            result = clip_by_bisector(result, points[idx], points[i]);
+            result = clip_by_bisector(result, idx, i, points[idx], points[i]);
         }
 
         return result;
@@ -82,6 +87,7 @@ public:
 
     std::vector<Vector> points;
     std::vector<Polygon> voronoi;
+    std::vector<double> weights;
     double MIN_X, MAX_X, MIN_Y, MAX_Y;
 };
 
