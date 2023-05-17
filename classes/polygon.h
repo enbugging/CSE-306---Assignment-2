@@ -7,10 +7,51 @@
 #include <cstdio>
 #include <string>
 #include "vector.h"
+#include <iostream>
 
 // if the Polygon class name conflicts with a class in wingdi.h on Windows, use a namespace or change the name
 class Polygon {  
 public:
+    double area()
+    {
+        if (vertices.size() < 3) return 0;
+        double area_computed = 0;
+        for (int i = 0; i < vertices.size(); i++)
+        {
+            //std::cout << "Area of small triangles: " << vertices[i][0] * vertices[(i + 1) % vertices.size()][1] - vertices[i][1] * vertices[(i + 1) % vertices.size()][0] << std::endl;
+            area_computed += vertices[i][0] * vertices[(i + 1) % vertices.size()][1] - vertices[i][1] * vertices[(i + 1) % vertices.size()][0];
+        }
+        return area_computed / 2;
+    }
+
+    double integrate_squared_distance(const Vector& P)
+    {
+        double result = 0;
+        if (vertices.size() < 3) return 0;
+        for (int i = 1; i < vertices.size()-1; i++)
+        {
+            Vector triangle[3] = {vertices[0], vertices[i], vertices[i+1]};
+
+            double local_result = 0;
+            for (int k = 0; k < 3; k++)
+            {
+                for (int l = k; l < 3; l++)
+                {
+                    local_result += dot(triangle[k] - P, triangle[l] - P);
+                }
+            }
+
+            double area_triangle = 0.5 * 
+                abs(
+                    (triangle[1][0] - triangle[0][0]) * (triangle[2][1] - triangle[0][1]) - 
+                    (triangle[1][1] - triangle[0][1]) * (triangle[2][0] - triangle[0][0])
+                );
+
+            result += local_result / 6. * area_triangle;
+        }
+        return result;
+    }
+
 	std::vector<Vector> vertices;
 };	
 

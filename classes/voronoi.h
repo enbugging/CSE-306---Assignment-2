@@ -11,13 +11,18 @@
 class Voronoi
 {
 public:
-    Voronoi() {}
+    Voronoi(): boundary_computed(false) {}
 
     Voronoi(const std::vector<Vector>& pts, const std::vector<double>& weights)
     {
         points = pts;
         this->weights = weights;
+        this->boundary_computed = true;
 
+        MIN_X = std::numeric_limits<double>::max();
+        MAX_X = std::numeric_limits<double>::min();
+        MIN_Y = std::numeric_limits<double>::max();
+        MAX_Y = std::numeric_limits<double>::min();
         for (Vector p : pts)
         {
             MIN_X = std::min(MIN_X, p[0]);
@@ -37,19 +42,36 @@ public:
         {
             const Vector& A = (i == 0) ? poly.vertices[poly.vertices.size() - 1] : poly.vertices[i - 1];
             const Vector& B = poly.vertices[i];
-            double t = dot(Mp - A, Pi - P0)/dot(B - A, Pi - P0);
+            
+            //std::cout << "B = " << B[0] << " " << B[1] << std::endl;
+            double t = dot(M - A, Pi - P0)/dot(B - A, Pi - P0);
             Vector P = A + t*(B - A);
 
-            if ((B - P0).norm() - weights[idx_0] < (B - Pi).norm() - weights[idx_i])
+            /*
+            if ((B - P0).norm2() - weights[idx_0] < (B - Pi).norm2() - weights[idx_i])
             {
-                if ((A - P0).norm() - weights[idx_0] > (A - Pi).norm() - weights[idx_i]) result.vertices.push_back(P);
+                if ((A - P0).norm2() - weights[idx_0] > (A - Pi).norm2() - weights[idx_i]) result.vertices.push_back(P);
                 result.vertices.push_back(B);
             }
-            else if ((A - P0).norm() - weights[idx_0] < (A - Pi).norm() - weights[idx_i])
+            else if ((A - P0).norm2() - weights[idx_0] < (A - Pi).norm2() - weights[idx_i])
             {
                 result.vertices.push_back(P);
             }
+            //*/
+            //*
+            //std::cout << (B - P0).norm2() << " " << (B - Pi).norm2() << std::endl;
+            if ((B - P0).norm2() < (B - Pi).norm2())
+            {
+                if ((A - P0).norm2() > (A - Pi).norm2()) result.vertices.push_back(P);
+                result.vertices.push_back(B);
+            }
+            else if ((A - P0).norm2() < (A - Pi).norm2())
+            {
+                result.vertices.push_back(P);
+            }
+            //*/
         }
+        //std::cout << result.vertices.size() << std::endl;
         return result;
     }
 
@@ -58,21 +80,35 @@ public:
         Polygon result;
         result.vertices.resize(4);
         result.vertices[0] = Vector(MIN_X, MIN_Y);
-        result.vertices[1] = Vector(MIN_X, MAX_Y);
+        result.vertices[1] = Vector(MAX_X, MIN_Y);
         result.vertices[2] = Vector(MAX_X, MAX_Y);
-        result.vertices[3] = Vector(MAX_X, MIN_Y);
-
+        result.vertices[3] = Vector(MIN_X, MAX_Y);
         for (int i = 0; i < points.size(); i++)
         {
             if (idx == i) continue;
             result = clip_by_bisector(result, idx, i, points[idx], points[i]);
         }
-
         return result;
     }
 
     void compute()
     {
+        if (not boundary_computed)
+        {
+            this -> boundary_computed = true;
+            MIN_X = std::numeric_limits<double>::max();
+            MAX_X = std::numeric_limits<double>::min();
+            MIN_Y = std::numeric_limits<double>::max();
+            MAX_Y = std::numeric_limits<double>::min();
+            for (Vector p : points)
+            {
+                MIN_X = std::min(MIN_X, p[0]);
+                MAX_X = std::max(MAX_X, p[0]);
+                MIN_Y = std::min(MIN_Y, p[1]);
+                MAX_Y = std::max(MAX_Y, p[1]);
+            }
+        }
+
         voronoi.resize(points.size());
         for (int i = 0; i < points.size(); i++)
         {
@@ -89,6 +125,7 @@ public:
     std::vector<Polygon> voronoi;
     std::vector<double> weights;
     double MIN_X, MAX_X, MIN_Y, MAX_Y;
+    bool boundary_computed;
 };
 
 #endif
