@@ -4,7 +4,6 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 
 #include <vector>
-#include <sstream>
 #include <string>
 
 #include "vector.h"
@@ -36,8 +35,8 @@ void save_frame(const std::vector<Polygon> &cells, std::string filename, int fra
         bmaxx = std::max(W-1., std::max(0., W * bmaxx));
         bmaxy = std::max(H-1., std::max(0., H * bmaxy));
 
-        for (int y = bminy; y < bmaxy; y++) {
-            for (int x = bminx; x < bmaxx; x++) {
+        for (int y = bminy; y < (int) bmaxy; y++) {
+            for (int x = bminx; x < (int) bmaxx; x++) {
                 int prevSign = 0;
                 bool isInside = true;
                 double mindistEdge = 1E9;
@@ -62,25 +61,24 @@ void save_frame(const std::vector<Polygon> &cells, std::string filename, int fra
                     mindistEdge = std::min(mindistEdge, distEdge);
                 }
                 if (isInside) {
-                    if (i < N) {   // the N first particles may represent fluid, displayed in blue
-                    	image[((H - y - 1)*W + x) * 3] = 0;
-                    	image[((H - y - 1)*W + x) * 3 + 1] = 0;
-                    	image[((H - y - 1)*W + x) * 3 + 2] = 255;
-                    }
-                    //if (mindistEdge <= 2) {
-                    //    image[((H - y - 1)*W + x) * 3] = 0;
-                    //    image[((H - y - 1)*W + x) * 3 + 1] = 0;
-                    //    image[((H - y - 1)*W + x) * 3 + 2] = 0;
+                    //if (i < N) {   // the N first particles may represent fluid, displayed in blue
+                    //	image[((H - y - 1)*W + x) * 3] = 0;
+                    //	image[((H - y - 1)*W + x) * 3 + 1] = 0;
+                    //	image[((H - y - 1)*W + x) * 3 + 2] = 255;
                     //}
+                    if (mindistEdge <= 2) {
+                        image[((H - y - 1)*W + x) * 3] = 0;
+                        image[((H - y - 1)*W + x) * 3 + 1] = 0;
+                        image[((H - y - 1)*W + x) * 3 + 2] = 0;
+                    }
 
                 }
                 
             }
         }
     }
-    std::ostringstream os;
-    os << filename << frameid << ".png";
-    stbi_write_png(os.str().c_str(), W, H, 3, &image[0], 0);
+    std::string s = filename + std::to_string(frameid) + ".png";
+    stbi_write_png(&s[0], W, H, 3, &image[0], 0);
 }
 
 class Fluid

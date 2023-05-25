@@ -5,8 +5,12 @@
 
 #include <string>
 #include <vector>
+#include <algorithm>
+#include <limits>
+#include <utility>
 #include "vector.h"
 #include "polygon.h"
+#include "kd_tree.h"
 
 class Voronoi
 {
@@ -45,6 +49,16 @@ public:
             MAX_Y = std::max(MAX_Y, p[1]);
         }
         MIN_X -= 1, MAX_X += 1, MIN_Y -= 1, MAX_Y += 1;
+
+        double max_weight = *std::max_element(weights.begin(), weights.end()) * 1.2;
+        std::vector<std::pair<Vector, int> > aux_points;
+        aux_points.resize(points.size());
+        for(int i = 0; i < points.size(); i++)
+        {
+            aux_points[i] = std::make_pair(points[i], i);
+            aux_points[i].first[2] = sqrt(max_weight - weights[i]);
+        }
+        KDTree tree(aux_points);
     }
 
     Polygon clip_by_bisector(const Polygon& poly, int idx_0, int idx_i, const Vector& P0, const Vector& Pi)
@@ -57,7 +71,7 @@ public:
             const Vector& A = (i == 0) ? poly.vertices[poly.vertices.size() - 1] : poly.vertices[i - 1];
             const Vector& B = poly.vertices[i];
             
-            double t = dot(M - A, Pi - P0)/dot(B - A, Pi - P0);
+            double t = dot(Mp - A, Pi - P0)/dot(B - A, Pi - P0);
             Vector P = A + t*(B - A);
 
             if ((B - P0).norm2() - weights[idx_0] < (B - Pi).norm2() - weights[idx_i])
@@ -100,28 +114,6 @@ public:
 
     Polygon intersect_with_disc(const Polygon& polygon, const Vector center, double radius) const
     {
-        /*
-        Polygon result;
-        for (int i = 0; i < polygon.vertices.size(); i++)
-        {
-            const Vector& A = (i == 0) ? polygon.vertices[polygon.vertices.size() - 1] : polygon.vertices[i - 1];
-            const Vector& B = polygon.vertices[i];
-            Vector AB = B - A;
-            Vector AO = center - A;
-            double a = dot(AB, AB);
-            double b = dot(AB, AO);
-            double c = dot(AO, AO) - radius*radius;
-            double delta = b*b - a*c;
-            if (delta < 0) continue;
-            double t = (-b - sqrt(delta))/a;
-            if (t < 0 or t > 1) continue;
-            result.vertices.push_back(A + t*AB);
-            t = (-b + sqrt(delta))/a;
-            if (t < 0 or t > 1) continue;
-            result.vertices.push_back(A + t*AB);
-        }
-        //*/
-        //*
         Polygon result(polygon);
         for (int i = 0; i < disc.vertices.size(); i++)
         {
@@ -129,7 +121,6 @@ public:
             const Vector& v = i == disc.vertices.size() - 1 ? disc.vertices[0] : disc.vertices[i + 1];
             result = clip_by_edge(result, center + radius*u, center + radius*v);
         }
-        //*/
         return result;
     }
 
@@ -141,13 +132,34 @@ public:
         result.vertices[1] = Vector(MAX_X, MIN_Y);
         result.vertices[2] = Vector(MAX_X, MAX_Y);
         result.vertices[3] = Vector(MIN_X, MAX_Y);
+        /* Version without kd-tree
         for (int i = 0; i < points.size(); i++)
         {
             if (idx == i) continue;
             result = clip_by_bisector(result, idx, i, points[idx], points[i]);
         }
-
-        result = intersect_with_disc(result, points[idx], sqrt(weights[idx] - weights[weights.size() - 1]));
+        //*/
+        //* Version with kd-tree
+        const int k = 10;
+        for (int prev_k = 0, curr_k = k; ; prev_k += k, curr_k += k)
+        {
+            std::cout << idx << ' ' << curr_k << std::endl;
+            std::vector<std::pair<Vector, int> > points_in_range = kdtree.findKNearestNeighbors(points[idx], curr_k);
+            if (points_in_range.size() < curr_k) 
+            {
+                std::cout << points_in_range.size() << " Hm, something is wrong\n";
+                break;
+            }
+            for (int i = prev_k; i < points_in_range.size(); i++)
+            {
+                if (idx == points_in_range[i].second) continue;
+                // if this point is farther than twice the farthest point in the polygon, we can stop
+                if ((points_in_range[i].first - points[idx]).norm2() > 4*(result.vertices[result.vertices.size() - 1] - points[idx]).norm2()) break;
+                result = clip_by_bisector(result, idx, points_in_range[i].second, points[idx], points[points_in_range[i].second]);
+            }
+        }
+        //*/
+        //result = intersect_with_disc(result, points[idx], sqrt(weights[idx] - weights[weights.size() - 1]));
 
         return result;
     }
@@ -168,6 +180,16 @@ public:
                 MIN_Y = std::min(MIN_Y, p[1]);
                 MAX_Y = std::max(MAX_Y, p[1]);
             }
+
+            double max_weight = *std::max_element(weights.begin(), weights.end()) * 1.2;
+            std::vector<std::pair<Vector, int> > aux_points;
+            aux_points.resize(points.size());
+            for(int i = 0; i < points.size(); i++)
+            {
+                aux_points[i] = std::make_pair(points[i], i);
+                aux_points[i].first[2] = sqrt(max_weight - weights[i]);
+            }
+            KDTree tree(aux_points);
         }
 
         voronoi.resize(points.size());
@@ -189,6 +211,7 @@ public:
     double MIN_X, MAX_X, MIN_Y, MAX_Y;
     bool boundary_computed;
     Polygon disc;
+    KDTree kdtree;
 };
 
 #endif

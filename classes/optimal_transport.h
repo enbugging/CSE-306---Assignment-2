@@ -111,8 +111,6 @@ public:
 
         // L-BFGS
         size_t ret = lbfgs((int) pts.size() + 1, &solution.weights[0], &fx, _evaluate, _progress, this, NULL);
-
-        solution.compute();
     }
 
     std::vector<Vector> pts;
