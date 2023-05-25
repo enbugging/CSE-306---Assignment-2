@@ -51,6 +51,19 @@ public:
         return result;
     }
 
+    Vector centroid()
+    {
+        Vector c = Vector(0, 0);
+        int N = vertices.size();
+        double A = area();
+        for (int i = 0 ; i < N; i++)
+        {
+            c[0] += (vertices[i][0] + vertices[(i + 1) % N][0]) * (vertices[i][0] * vertices[(i + 1) % N][1] - vertices[(i + 1) % N][0] * vertices[i][1]);
+            c[1] += (vertices[i][1] + vertices[(i + 1) % N][1]) * (vertices[i][0] * vertices[(i + 1) % N][1] - vertices[(i + 1) % N][0] * vertices[i][1]);
+        }
+        return c / (6 * A);
+    }
+
 	std::vector<Vector> vertices;
 };	
 

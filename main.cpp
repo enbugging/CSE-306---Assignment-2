@@ -1,9 +1,14 @@
 #include "./classes/vector.h"
 #include "./classes/voronoi.h"
 #include "./classes/optimal_transport.h"
+#include "./classes/fluid.h"
 
 int main()
 {
+    Fluid F(100);
+    F.runfluid();
+    return 0;
+
     std::vector<Vector> points(300);
     std::vector<double> lambdas(300, 1);
     double sum = 0;

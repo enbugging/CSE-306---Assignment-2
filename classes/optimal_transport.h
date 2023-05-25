@@ -7,8 +7,13 @@
 #include "lbfgs.h"
 #include <iostream>
 
+#define VOLUME_AIR 0.7
+#define VOLUME_FLUID 0.3
+
 class OptimalTransport {
 public:
+    OptimalTransport() {}
+
     OptimalTransport(const std::vector<Vector>& pts, const std::vector<double>& lambdas) {
         this->pts = pts;
         this->lambdas = lambdas;
@@ -41,8 +46,8 @@ public:
         }
         solution.compute();
 
-        double s1 = 0.0, s2 = 0.0, s3 = 0.0;
-        for (int i = 0; i < n; i++)
+        double s1 = 0.0, s2 = 0.0, s3 = 0.0, estimated_volume_fluid = 0.0;
+        for (int i = 0; i < n-1; i++)
         {
             //std::cout << "Polygon size: " << solution.voronoi[i].vertices.size() << '\n';
             double A = solution.voronoi[i].area();
@@ -51,8 +56,12 @@ public:
             s2 -= A * x[i];
             //std::cout << A << '\n';
             s3 += lambdas[i] * x[i];
+            estimated_volume_fluid += A;
         }
         fx = s1 + s2 + s3;
+        // account for volume of air, i.e. w_air (desired_volume - esimated_volume)
+        fx += x[n-1] * (VOLUME_AIR - (1-estimated_volume_fluid));
+        g[n-1] = -(VOLUME_AIR - (1-estimated_volume_fluid));
         return -fx;
     }
 
@@ -93,13 +102,15 @@ public:
 
     void solve() {
         solution.points = pts;
-        solution.weights.resize(pts.size());
+        solution.weights.resize(pts.size()+1);
         std::fill(solution.weights.begin(), solution.weights.end(), 1.0);
+        solution.weights[pts.size()] = 0.999;
+
         solution.compute();
         double fx = 0.0;
 
         // L-BFGS
-        size_t ret = lbfgs((int) pts.size(), &solution.weights[0], &fx, _evaluate, _progress, this, NULL);
+        size_t ret = lbfgs((int) pts.size() + 1, &solution.weights[0], &fx, _evaluate, _progress, this, NULL);
 
         solution.compute();
     }

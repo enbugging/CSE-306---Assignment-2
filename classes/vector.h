@@ -23,6 +23,19 @@ public:
 		data[0] /= n;
 		data[1] /= n;
 	}
+
+	Vector operator+=(const Vector& b) {
+		data[0] += b[0];
+		data[1] += b[1];
+		return *this;
+	}
+
+	Vector operator-=(const Vector& b) {
+		data[0] -= b[0];
+		data[1] -= b[1];
+		return *this;
+	}
+
 	double operator[](int i) const { return data[i]; };
 	double& operator[](int i) { return data[i]; };
 	double data[2];

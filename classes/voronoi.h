@@ -11,13 +11,27 @@
 class Voronoi
 {
 public:
-    Voronoi(): boundary_computed(false) {}
+    Voronoi(int N_disc = 50): boundary_computed(false) {
+        disc.vertices.resize(N_disc);
+        for (int i = 0; i < N_disc; i++)
+        {
+            double theta = 2*M_PI*i/N_disc;
+            disc.vertices[i] = Vector(cos(theta), sin(theta));
+        }
+    }
 
-    Voronoi(const std::vector<Vector>& pts, const std::vector<double>& weights)
+    Voronoi(const std::vector<Vector>& pts, const std::vector<double>& weights, int N_disc = 50)
     {
         points = pts;
         this->weights = weights;
         this->boundary_computed = true;
+
+        disc.vertices.resize(N_disc);
+        for (int i = 0; i < N_disc; i++)
+        {
+            double theta = 2*M_PI*i/N_disc;
+            disc.vertices[i] = Vector(cos(theta), sin(theta));
+        }
 
         MIN_X = std::numeric_limits<double>::max();
         MAX_X = std::numeric_limits<double>::min();
@@ -59,6 +73,66 @@ public:
         return result;
     }
 
+    Polygon clip_by_edge(const Polygon& poly, const Vector& u, const Vector& v) const
+    {
+        Polygon result;
+        Vector N(v[1] - u[1], u[0] - v[0]);
+        for (int i = 0; i < poly.vertices.size(); i++)
+        {
+            const Vector& A = (i == 0) ? poly.vertices[poly.vertices.size() - 1] : poly.vertices[i - 1];
+            const Vector& B = poly.vertices[i];
+            
+            double t = dot(u - A, N)/dot(B - A, N);
+            Vector P = A + t*(B - A);
+
+            if (dot(B - u, N) < 0) // B is inside
+            {
+                if (dot(A - u, N) > 0) result.vertices.push_back(P); // A is outside
+                result.vertices.push_back(B);
+            }
+            else if (dot(A - u, N) < 0) // A is inside
+            {
+                result.vertices.push_back(P);
+            }
+        }
+        return result;
+    }
+
+    Polygon intersect_with_disc(const Polygon& polygon, const Vector center, double radius) const
+    {
+        /*
+        Polygon result;
+        for (int i = 0; i < polygon.vertices.size(); i++)
+        {
+            const Vector& A = (i == 0) ? polygon.vertices[polygon.vertices.size() - 1] : polygon.vertices[i - 1];
+            const Vector& B = polygon.vertices[i];
+            Vector AB = B - A;
+            Vector AO = center - A;
+            double a = dot(AB, AB);
+            double b = dot(AB, AO);
+            double c = dot(AO, AO) - radius*radius;
+            double delta = b*b - a*c;
+            if (delta < 0) continue;
+            double t = (-b - sqrt(delta))/a;
+            if (t < 0 or t > 1) continue;
+            result.vertices.push_back(A + t*AB);
+            t = (-b + sqrt(delta))/a;
+            if (t < 0 or t > 1) continue;
+            result.vertices.push_back(A + t*AB);
+        }
+        //*/
+        //*
+        Polygon result(polygon);
+        for (int i = 0; i < disc.vertices.size(); i++)
+        {
+            const Vector& u = disc.vertices[i];
+            const Vector& v = i == disc.vertices.size() - 1 ? disc.vertices[0] : disc.vertices[i + 1];
+            result = clip_by_edge(result, center + radius*u, center + radius*v);
+        }
+        //*/
+        return result;
+    }
+
     Polygon compute_voronoi_cell(int idx)
     {
         Polygon result;
@@ -72,6 +146,9 @@ public:
             if (idx == i) continue;
             result = clip_by_bisector(result, idx, i, points[idx], points[i]);
         }
+
+        result = intersect_with_disc(result, points[idx], sqrt(weights[idx] - weights[weights.size() - 1]));
+
         return result;
     }
 
@@ -94,6 +171,7 @@ public:
         }
 
         voronoi.resize(points.size());
+        #pragma omp parallel for schedule(dynamic)
         for (int i = 0; i < points.size(); i++)
         {
             voronoi[i] = compute_voronoi_cell(i);
@@ -110,6 +188,7 @@ public:
     std::vector<double> weights;
     double MIN_X, MAX_X, MIN_Y, MAX_Y;
     bool boundary_computed;
+    Polygon disc;
 };
 
 #endif
