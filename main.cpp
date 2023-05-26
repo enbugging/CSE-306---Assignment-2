@@ -7,19 +7,14 @@
 
 int main()
 {
-    /*
     // Elapsed time
     clock_t start, end;
     double cpu_time_used;
     start = clock();
-
+    /*
     Fluid F(100);
     F.runfluid();
 
-    end = clock();
-    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-    std::cout << "Time elapsed: " << cpu_time_used << '\n';
-    return 0;
     //*/
     //*
     
@@ -46,4 +41,8 @@ int main()
     voronoi.compute();
     voronoi.save("voronoi.svg");
     //*/
+    
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    std::cout << "Time elapsed: " << cpu_time_used << '\n';
 }

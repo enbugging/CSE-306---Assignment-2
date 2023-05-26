@@ -58,14 +58,16 @@ public:
             aux_points[i] = std::make_pair(points[i], i);
             aux_points[i].first[2] = sqrt(max_weight - weights[i]);
         }
-        KDTree tree(aux_points);
+        kdtree = KDTree(aux_points);
     }
 
-    Polygon clip_by_bisector(const Polygon& poly, int idx_0, int idx_i, const Vector& P0, const Vector& Pi)
+    Polygon clip_by_bisector(const Polygon& poly, int idx_0, int idx_i, const Vector& P0, const Vector& Pi, double& maximum_distance)
     {
         Polygon result;
         Vector M = (P0 + Pi)/2;
-        Vector Mp = M + (weights[idx_0] - weights[idx_i])/(2.*(P0 - Pi).norm2())*(Pi - P0);    
+        Vector Mp = M + (weights[idx_0] - weights[idx_i])/(2.*(P0 - Pi).norm2())*(Pi - P0);
+
+        maximum_distance = 0;
         for (int i = 0; i < poly.vertices.size(); i++)
         {
             const Vector& A = (i == 0) ? poly.vertices[poly.vertices.size() - 1] : poly.vertices[i - 1];
@@ -76,14 +78,21 @@ public:
 
             if ((B - P0).norm2() - weights[idx_0] < (B - Pi).norm2() - weights[idx_i])
             {
-                if ((A - P0).norm2() - weights[idx_0] > (A - Pi).norm2() - weights[idx_i]) result.vertices.push_back(P);
+                if ((A - P0).norm2() - weights[idx_0] > (A - Pi).norm2() - weights[idx_i])
+                {
+                    result.vertices.push_back(P);
+                    maximum_distance = std::max(maximum_distance, (P - P0).norm());
+                }
                 result.vertices.push_back(B);
+                maximum_distance = std::max(maximum_distance, (B - P0).norm());
             }
             else if ((A - P0).norm2() - weights[idx_0] < (A - Pi).norm2() - weights[idx_i])
             {
                 result.vertices.push_back(P);
+                maximum_distance = std::max(maximum_distance, (P - P0).norm());
             }
         }
+        if (!result.contains(P0)) maximum_distance = std::numeric_limits<double>::max();
         return result;
     }
 
@@ -127,40 +136,39 @@ public:
     Polygon compute_voronoi_cell(int idx)
     {
         Polygon result;
+        double maximum_distance = std::numeric_limits<double>::max();
         result.vertices.resize(4);
         result.vertices[0] = Vector(MIN_X, MIN_Y);
         result.vertices[1] = Vector(MAX_X, MIN_Y);
         result.vertices[2] = Vector(MAX_X, MAX_Y);
         result.vertices[3] = Vector(MIN_X, MAX_Y);
-        /* Version without kd-tree
+        //* Version without kd-tree
         for (int i = 0; i < points.size(); i++)
         {
             if (idx == i) continue;
-            result = clip_by_bisector(result, idx, i, points[idx], points[i]);
+            result = clip_by_bisector(result, idx, i, points[idx], points[i], maximum_distance);
         }
         //*/
-        //* Version with kd-tree
+        /* Version with kd-tree
         const int k = 10;
-        for (int prev_k = 0, curr_k = k; ; prev_k += k, curr_k += k)
+        for (int prev_k = 0, curr_k = k; curr_k < points.size(); prev_k += k, curr_k += k)
         {
-            std::cout << idx << ' ' << curr_k << std::endl;
+            bool contributing = true;
             std::vector<std::pair<Vector, int> > points_in_range = kdtree.findKNearestNeighbors(points[idx], curr_k);
-            if (points_in_range.size() < curr_k) 
-            {
-                std::cout << points_in_range.size() << " Hm, something is wrong\n";
-                break;
-            }
             for (int i = prev_k; i < points_in_range.size(); i++)
             {
                 if (idx == points_in_range[i].second) continue;
-                // if this point is farther than twice the farthest point in the polygon, we can stop
-                if ((points_in_range[i].first - points[idx]).norm2() > 4*(result.vertices[result.vertices.size() - 1] - points[idx]).norm2()) break;
-                result = clip_by_bisector(result, idx, points_in_range[i].second, points[idx], points[points_in_range[i].second]);
+                if ((points_in_range[i].first - points[idx]).norm() > 2*maximum_distance)
+                {
+                    contributing = false;
+                    break;
+                }
+                result = clip_by_bisector(result, idx, points_in_range[i].second, points[idx], points[points_in_range[i].second], maximum_distance);
             }
+            if (not contributing) break;
         }
         //*/
         //result = intersect_with_disc(result, points[idx], sqrt(weights[idx] - weights[weights.size() - 1]));
-
         return result;
     }
 
@@ -189,9 +197,8 @@ public:
                 aux_points[i] = std::make_pair(points[i], i);
                 aux_points[i].first[2] = sqrt(max_weight - weights[i]);
             }
-            KDTree tree(aux_points);
+            kdtree = KDTree(aux_points);
         }
-
         voronoi.resize(points.size());
         #pragma omp parallel for schedule(dynamic)
         for (int i = 0; i < points.size(); i++)

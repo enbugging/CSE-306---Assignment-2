@@ -7,6 +7,7 @@
 #include <utility>
 #include <queue>
 #include <algorithm>
+#include <iostream>
 #include "vector.h"
 
 class KDNode {

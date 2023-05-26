@@ -64,6 +64,18 @@ public:
         return c / (6 * A);
     }
 
+    bool contains(const Vector& P)
+    {
+        int N = vertices.size();
+        for (int i = 0; i < N; i++)
+        {
+            Vector v1 = vertices[(i + 1) % N];
+            Vector v2 = P - vertices[i];
+            if (v2[0] * (v1[1] - vertices[i][1]) > v2[1]*(vertices[i][0] - v1[0])) return false;
+        }
+        return true;
+    }
+
 	std::vector<Vector> vertices;
 };	
 
