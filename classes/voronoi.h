@@ -49,16 +49,6 @@ public:
             MAX_Y = std::max(MAX_Y, p[1]);
         }
         MIN_X -= 1e-4, MAX_X += 1e-4, MIN_Y -= 1e-4, MAX_Y += 1e-4;
-
-        max_weight = (*std::max_element(weights.begin(), weights.end()));
-        std::vector<std::pair<Vector, int> > aux_points;
-        aux_points.resize(points.size());
-        for(int i = 0; i < points.size(); i++)
-        {
-            aux_points[i] = std::make_pair(points[i], i);
-            aux_points[i].first[2] = sqrt(max_weight - weights[i]);
-        }
-        kdtree = KDTree(aux_points);
     }
 
     Polygon clip_by_bisector(
@@ -73,7 +63,9 @@ public:
         Vector M = (P0 + Pi)/2;
         Vector Mp = M + (weights[idx_0] - weights[idx_i])/(2.*(P0 - Pi).norm2())*(Pi - P0);
         
-        maximum_distance = 0;
+        maximum_distance = -std::numeric_limits<double>::max();
+        
+        //std::cout << "maximum_distance = " << maximum_distance << "\n";
         for (int i = 0; i < poly.vertices.size(); i++)
         {
             const Vector& A = (i == 0) ? poly.vertices[poly.vertices.size() - 1] : poly.vertices[i - 1];
@@ -98,11 +90,14 @@ public:
                 maximum_distance = std::max(maximum_distance, (P - P0).norm2());
             }
         }
+        //std::cout << "____________\n";
         //for (Vector& p : result.vertices)
         //{
         //    std::cout << p[0] << " " << p[1] << " - " << P0[0] << " " << P0[1] << " " << (p - P0).norm2() << std::endl;
         //}
         maximum_distance += max_weight - weights[idx_0];
+        //std::cout << "maximum_distance = " << maximum_distance << "\n";
+        //std::cout << "____________\n";
         return result;
     }
 
@@ -153,6 +148,8 @@ public:
         result.vertices[1] = Vector(MAX_X, MIN_Y);
         result.vertices[2] = Vector(MAX_X, MAX_Y);
         result.vertices[3] = Vector(MIN_X, MAX_Y);
+        //std::cout << "building for " << idx << "\n";
+        
         /* Version without kd-tree
         for (int i = 0; i < points.size(); i++)
         {
@@ -161,15 +158,16 @@ public:
         }
         //*/
         //* Version with kd-tree
-        const int k = 50;
+        const int k = 100;
         std::vector<int> points_in_range;
-        //::cout << "building for " << idx << "\n";
         double distance = 0;
-        for (int prev_k = 0, curr_k = k; prev_k < points.size() - 1; curr_k = prev_k + k)
+        int prev_k = 0, curr_k = k;
+        Vector p_prime = points[idx];
+        p_prime[2] = sqrt(max_weight - weights[idx]);
+        for (; prev_k < points.size() - 1; curr_k = prev_k + k + 1)
         {
-            //std::cout << "retrieving for " << curr_k << "\n";
             contributing = true;
-            kdtree.findKNearestNeighbors(points_in_range, points[idx], curr_k);
+            kdtree.findKNearestNeighbors(points_in_range, p_prime, curr_k);
 
             for (; prev_k < points_in_range.size(); prev_k++)
             {
@@ -177,9 +175,9 @@ public:
 
                 double d = sqrt(max_weight - weights[points_in_range[prev_k]]) - sqrt(max_weight - weights[idx]);
                 d *= d;
-                //std::cout << d << " " << (points[idx] - points[points_in_range[prev_k]]).norm2() << "\n";
-                //std::cout << (d + (points[idx] - points[points_in_range[prev_k]]).norm2()) << " " << 2*maximum_distance << "\n";
-                if (d + (points[idx] - points[points_in_range[prev_k]]).norm2() > 2*maximum_distance)
+                //std::cout << prev_k << " " << d << " " << (points[idx] - points[points_in_range[prev_k]]).norm2() << "\n";
+                //std::cout << (d + (points[idx] - points[points_in_range[prev_k]]).norm2()) << " " << 4*maximum_distance << "\n";
+                if (d + (points[idx] - points[points_in_range[prev_k]]).norm2() > 4*maximum_distance)
                 {
                     contributing = false;
                     break;
@@ -189,8 +187,9 @@ public:
             }
             if (not contributing) break;
         }
+        //std::cout << curr_k << "\n";
         //*/
-        //result = intersect_with_disc(result, points[idx], sqrt(weights[idx] - weights[weights.size() - 1]));
+        result = intersect_with_disc(result, points[idx], sqrt(weights[idx] - weights[weights.size() - 1]));
         return result;
     }
 
@@ -211,17 +210,18 @@ public:
                 MAX_Y = std::max(MAX_Y, p[1]);
             }
             MIN_X -= 1e-4, MAX_X += 1e-4, MIN_Y -= 1e-4, MAX_Y += 1e-4;
-
-            max_weight = (*std::max_element(weights.begin(), weights.end()));
-            std::vector<std::pair<Vector, int> > aux_points;
-            aux_points.resize(points.size());
-            for(int i = 0; i < points.size(); i++)
-            {
-                aux_points[i] = std::make_pair(points[i], i);
-                aux_points[i].first[2] = sqrt(max_weight - weights[i]);
-            }
-            kdtree = KDTree(aux_points);
         }
+
+        max_weight = (*std::max_element(weights.begin(), weights.end()));
+        std::vector<std::pair<Vector, int> > aux_points;
+        aux_points.resize(points.size());
+        for(int i = 0; i < points.size(); i++)
+        {
+            aux_points[i] = std::make_pair(points[i], i);
+            aux_points[i].first[2] = sqrt(max_weight - weights[i]);
+        }
+        kdtree = KDTree(aux_points);
+        
         voronoi.resize(points.size());
         #pragma omp parallel for schedule(dynamic)
         for (int i = 0; i < points.size(); i++)
