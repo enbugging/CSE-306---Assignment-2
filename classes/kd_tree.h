@@ -30,18 +30,17 @@ public:
         root = buildTreeRecursive(points);
     }
 
-    std::vector<std::pair<Vector, int> > findKNearestNeighbors(const Vector& target, int k) const {
+    void findKNearestNeighbors(std::vector<int>& result, const Vector& target, int k) const {
         std::priority_queue<std::pair<double, std::pair<Vector, int>>> nearestNeighbors;
         findKNearestNeighborsRecursive(root, target, k, 0, nearestNeighbors);
 
-        std::vector<std::pair<Vector, int> > result;
+        int i = 0;
+        result.resize(nearestNeighbors.size());
         while (!nearestNeighbors.empty()) {
-            result.push_back(nearestNeighbors.top().second);
+            result[i++] = nearestNeighbors.top().second.second;
             nearestNeighbors.pop();
         }
         std::reverse(result.begin(), result.end()); // To get the nearest neighbors in ascending order
-
-        return result;
     }
 
 private:
@@ -94,7 +93,7 @@ private:
         if (node == nullptr)
             return;
 
-        double distance = (node->point - target).norm();
+        double distance = (node->point - target).norm2();
 
         if (nearestNeighbors.size() < k) {
             nearestNeighbors.emplace(distance, std::make_pair(node->point, node->idx));

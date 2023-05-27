@@ -69,9 +69,9 @@ public:
         int N = vertices.size();
         for (int i = 0; i < N; i++)
         {
-            Vector v1 = vertices[(i + 1) % N];
-            Vector v2 = P - vertices[i];
-            if (v2[0] * (v1[1] - vertices[i][1]) > v2[1]*(vertices[i][0] - v1[0])) return false;
+            Vector v1 = vertices[i] - P;
+            Vector v2 = Vector(vertices[(i + 1) % N][1] - vertices[i][1], -vertices[(i + 1) % N][0] + vertices[i][0]);
+            if (dot(v1, v2) < 0) return false;
         }
         return true;
     }

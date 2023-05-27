@@ -48,9 +48,9 @@ public:
             MIN_Y = std::min(MIN_Y, p[1]);
             MAX_Y = std::max(MAX_Y, p[1]);
         }
-        MIN_X -= 1, MAX_X += 1, MIN_Y -= 1, MAX_Y += 1;
+        MIN_X -= 1e-4, MAX_X += 1e-4, MIN_Y -= 1e-4, MAX_Y += 1e-4;
 
-        double max_weight = *std::max_element(weights.begin(), weights.end()) * 1.2;
+        max_weight = (*std::max_element(weights.begin(), weights.end()));
         std::vector<std::pair<Vector, int> > aux_points;
         aux_points.resize(points.size());
         for(int i = 0; i < points.size(); i++)
@@ -61,12 +61,18 @@ public:
         kdtree = KDTree(aux_points);
     }
 
-    Polygon clip_by_bisector(const Polygon& poly, int idx_0, int idx_i, const Vector& P0, const Vector& Pi, double& maximum_distance)
+    Polygon clip_by_bisector(
+        const Polygon& poly, 
+        int idx_0, 
+        int idx_i, 
+        const Vector& P0, 
+        const Vector& Pi, 
+        double& maximum_distance)
     {
         Polygon result;
         Vector M = (P0 + Pi)/2;
         Vector Mp = M + (weights[idx_0] - weights[idx_i])/(2.*(P0 - Pi).norm2())*(Pi - P0);
-
+        
         maximum_distance = 0;
         for (int i = 0; i < poly.vertices.size(); i++)
         {
@@ -81,18 +87,22 @@ public:
                 if ((A - P0).norm2() - weights[idx_0] > (A - Pi).norm2() - weights[idx_i])
                 {
                     result.vertices.push_back(P);
-                    maximum_distance = std::max(maximum_distance, (P - P0).norm());
+                    maximum_distance = std::max(maximum_distance, (P - P0).norm2());
                 }
                 result.vertices.push_back(B);
-                maximum_distance = std::max(maximum_distance, (B - P0).norm());
+                maximum_distance = std::max(maximum_distance, (B - P0).norm2());
             }
             else if ((A - P0).norm2() - weights[idx_0] < (A - Pi).norm2() - weights[idx_i])
             {
                 result.vertices.push_back(P);
-                maximum_distance = std::max(maximum_distance, (P - P0).norm());
+                maximum_distance = std::max(maximum_distance, (P - P0).norm2());
             }
         }
-        if (!result.contains(P0)) maximum_distance = std::numeric_limits<double>::max();
+        //for (Vector& p : result.vertices)
+        //{
+        //    std::cout << p[0] << " " << p[1] << " - " << P0[0] << " " << P0[1] << " " << (p - P0).norm2() << std::endl;
+        //}
+        maximum_distance += max_weight - weights[idx_0];
         return result;
     }
 
@@ -137,33 +147,45 @@ public:
     {
         Polygon result;
         double maximum_distance = std::numeric_limits<double>::max();
+        bool contributing = true;
         result.vertices.resize(4);
         result.vertices[0] = Vector(MIN_X, MIN_Y);
         result.vertices[1] = Vector(MAX_X, MIN_Y);
         result.vertices[2] = Vector(MAX_X, MAX_Y);
         result.vertices[3] = Vector(MIN_X, MAX_Y);
-        //* Version without kd-tree
+        /* Version without kd-tree
         for (int i = 0; i < points.size(); i++)
         {
             if (idx == i) continue;
             result = clip_by_bisector(result, idx, i, points[idx], points[i], maximum_distance);
         }
         //*/
-        /* Version with kd-tree
-        const int k = 10;
-        for (int prev_k = 0, curr_k = k; curr_k < points.size(); prev_k += k, curr_k += k)
+        //* Version with kd-tree
+        const int k = 50;
+        std::vector<int> points_in_range;
+        //::cout << "building for " << idx << "\n";
+        double distance = 0;
+        for (int prev_k = 0, curr_k = k; prev_k < points.size() - 1; curr_k = prev_k + k)
         {
-            bool contributing = true;
-            std::vector<std::pair<Vector, int> > points_in_range = kdtree.findKNearestNeighbors(points[idx], curr_k);
-            for (int i = prev_k; i < points_in_range.size(); i++)
+            //std::cout << "retrieving for " << curr_k << "\n";
+            contributing = true;
+            kdtree.findKNearestNeighbors(points_in_range, points[idx], curr_k);
+
+            for (; prev_k < points_in_range.size(); prev_k++)
             {
-                if (idx == points_in_range[i].second) continue;
-                if ((points_in_range[i].first - points[idx]).norm() > 2*maximum_distance)
+                if (idx == points_in_range[prev_k]) continue;
+
+                double d = sqrt(max_weight - weights[points_in_range[prev_k]]) - sqrt(max_weight - weights[idx]);
+                d *= d;
+                //std::cout << d << " " << (points[idx] - points[points_in_range[prev_k]]).norm2() << "\n";
+                //std::cout << (d + (points[idx] - points[points_in_range[prev_k]]).norm2()) << " " << 2*maximum_distance << "\n";
+                if (d + (points[idx] - points[points_in_range[prev_k]]).norm2() > 2*maximum_distance)
                 {
                     contributing = false;
                     break;
                 }
-                result = clip_by_bisector(result, idx, points_in_range[i].second, points[idx], points[points_in_range[i].second], maximum_distance);
+
+                result = clip_by_bisector(result, idx, points_in_range[prev_k], points[idx], points[points_in_range[prev_k]], maximum_distance);
             }
             if (not contributing) break;
         }
@@ -188,8 +210,9 @@ public:
                 MIN_Y = std::min(MIN_Y, p[1]);
                 MAX_Y = std::max(MAX_Y, p[1]);
             }
+            MIN_X -= 1e-4, MAX_X += 1e-4, MIN_Y -= 1e-4, MAX_Y += 1e-4;
 
-            double max_weight = *std::max_element(weights.begin(), weights.end()) * 1.2;
+            max_weight = (*std::max_element(weights.begin(), weights.end()));
             std::vector<std::pair<Vector, int> > aux_points;
             aux_points.resize(points.size());
             for(int i = 0; i < points.size(); i++)
@@ -216,6 +239,7 @@ public:
     std::vector<Polygon> voronoi;
     std::vector<double> weights;
     double MIN_X, MAX_X, MIN_Y, MAX_Y;
+    double max_weight;
     bool boundary_computed;
     Polygon disc;
     KDTree kdtree;
