@@ -158,7 +158,7 @@ public:
         }
         //*/
         //* Version with kd-tree
-        const int k = 100;
+        const int k = 15;
         std::vector<int> points_in_range;
         double distance = 0;
         int prev_k = 0, curr_k = k;

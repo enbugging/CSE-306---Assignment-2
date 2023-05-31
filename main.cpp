@@ -11,12 +11,12 @@ int main()
     clock_t start, end;
     double cpu_time_used;
     start = clock();
-    /*
+    //*
     Fluid F(100);
     F.runfluid();
 
     //*/
-    //*
+    /*
     
     std::vector<Vector> points(300);
     std::vector<double> lambdas(300, 1);
@@ -36,7 +36,7 @@ int main()
     OT.solve();
     OT.solution.save("voronoi.svg");
     //*/
-    //*
+    /*
     Voronoi voronoi(points, lambdas);
     voronoi.compute();
     voronoi.save("voronoi.svg");
